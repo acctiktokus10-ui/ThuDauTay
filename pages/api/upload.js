@@ -1,6 +1,9 @@
 // pages/api/upload.js
+import { syncToDauTay } from '../../lib/syncToDauTay'
+
 export const config = {
   api: { bodyParser: { sizeLimit: '10mb' } },
+  maxDuration: 30,
 }
 
 const PASSWORD = process.env.UPLOAD_PASSWORD || 'Thucute9999'
@@ -59,9 +62,15 @@ export default async function handler(req, res) {
   // Lưu metadata
   await kvSet(`meta_${type}`, { updated_at: now, count })
 
+  // Chờ đồng bộ xong thay vì chạy nền (waitUntil không đảm bảo chạy hết trên
+  // Pages Router / khi Fluid Compute chưa bật) — để biết chắc có sang
+  // hoantien-dautay hay không.
+  const syncedToDauTay = await syncToDauTay(type, data)
+
   return res.status(200).json({
     success: true,
     message: `Đã cập nhật ${count} sub_id vào ${key}`,
     updated_at: now,
+    syncedToDauTay,
   })
 }

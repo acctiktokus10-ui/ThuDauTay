@@ -109,6 +109,53 @@ Bot sẽ tự động đọc dữ liệu mới nhất mỗi lần khách nhắn 
 
 ---
 
+## ⚠️ Lưu ý: file `bot_data_loader.py` trong repo này KHÔNG PHẢI file helper
+
+File `bot_data_loader.py` hiện có trong repo (mấy nghìn dòng, có class
+`ZaloAffiliateBot`, Playwright...) thực chất là **file bot chính** (kiểu
+`bot_v27.py`) — bị nhầm tên. File helper THẬT SỰ (nhỏ, chỉ chứa
+`load_donhang_remote`, `push_danhan_from_file_to_upstash`...) đã bị thiếu —
+đây là lý do bot gặp lỗi khi gọi các hàm này (`ImportError`).
+
+**Cách sửa trên máy/VPS chạy bot** (không liên quan tới code Vercel):
+1. Đổi tên file bot chính hiện tại (nghìn dòng) → ví dụ `bot_v27.py`
+2. Tạo file helper mới tên đúng là `bot_data_loader.py`, đặt cùng thư mục
+   với `bot_v27.py` — nội dung file helper chuẩn đã được cung cấp riêng.
+
+## 🔗 Đồng bộ sang hoan-tien-dautay (web hiển thị cho khách)
+
+Giống hệt cơ chế `syncToHoanVi.js` bên hệ thống phuongthaovip: mỗi khi có
+upload donhang/vitien mới (`/api/upload`), hoặc bot ghi da_nhan sau khi rút
+tiền (`POST /api/data/danhan`), dữ liệu sẽ được gửi kèm sang
+`hoantien-dautay-main` để web đó hiển thị đơn hàng & ví tiền cho khách theo
+My ID.
+
+Cần thêm 2 biến môi trường trên Vercel của **ThuDauTay-main** (project web
+upload này):
+
+```
+DAUTAY_SYNC_URL = https://hoantien-dautay.vercel.app/api/sync-data
+SYNC_SECRET     = <chuỗi bí mật tự đặt>
+```
+
+`SYNC_SECRET` phải khớp với biến `SYNC_SECRET` đặt trên Vercel của
+**hoantien-dautay-main**, và khớp với hằng `SYNC_SECRET` trong file helper
+`bot_data_loader.py` thật (để bot cũng đẩy được da_nhan thẳng sang
+hoantien-dautay mà không cần qua đây).
+
+Nếu chưa cấu hình `DAUTAY_SYNC_URL`, việc upload ở đây vẫn hoạt động bình
+thường — chỉ bỏ qua bước đồng bộ (ghi log cảnh báo `[syncToDauTay] Chưa cấu
+hình DAUTAY_SYNC_URL — bỏ qua đồng bộ`).
+
+**Đây chính là bước bạn đang thiếu** — lý do nhập ID vào
+`hoantien-dautay.vercel.app` không hiện đơn hàng: dữ liệu upload chỉ nằm ở
+Redis riêng của `ThuDauTay-main`, chưa từng được gửi sang
+`hoantien-dautay-main`. Sau khi thêm 2 biến trên và **redeploy**, mỗi lần
+bạn upload lại donhang/vitien, dữ liệu sẽ tự động có mặt bên
+`hoantien-dautay-main` ngay.
+
+---
+
 ## ❓ Câu hỏi thường gặp
 
 **Q: Upstash Redis miễn phí được không?**

@@ -1,6 +1,11 @@
 // pages/api/data/[type].js
 // Bot gọi GET /api/data/donhang|vitien|danhan để lấy dữ liệu
 // Bot gọi POST /api/data/danhan để ghi lại sau khi rút tiền
+import { syncToDauTay } from '../../../lib/syncToDauTay'
+
+export const config = {
+  maxDuration: 30,
+}
 
 let _store = {}
 
@@ -93,7 +98,12 @@ export default async function handler(req, res) {
     // Cập nhật metadata
     await kvSet('meta_danhan', { updated_at: new Date().toISOString(), count: Object.keys(data).length })
 
-    return res.status(200).json({ success: true })
+    // Chờ đồng bộ xong thay vì chạy nền (waitUntil không đảm bảo chạy hết trên
+    // Pages Router / khi Fluid Compute chưa bật) — để biết chắc có sang
+    // hoantien-dautay hay không.
+    const syncedToDauTay = await syncToDauTay('danhan', data)
+
+    return res.status(200).json({ success: true, syncedToDauTay })
   }
 
   return res.status(405).json({ error: 'Method not allowed' })
